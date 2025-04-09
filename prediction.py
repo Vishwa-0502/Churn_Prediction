@@ -14,24 +14,95 @@ def load_model_and_scaler():
             logging.info("Model and scaler loaded successfully")
         except Exception as e:
             logging.warning(f"Could not load pre-trained model: {str(e)}. Creating a simple model for testing.")
-            # Create a simple ensemble model for testing
-            from sklearn.ensemble import VotingClassifier
+            # Create a more realistic model for testing
+            from sklearn.ensemble import RandomForestClassifier, VotingClassifier
             from sklearn.linear_model import LogisticRegression
             from sklearn.preprocessing import StandardScaler
             
-            # Create simple models
-            lr_model = LogisticRegression(max_iter=1000)
+            # Create models
+            lr_model = LogisticRegression(max_iter=1000, class_weight='balanced')
+            rf_model = RandomForestClassifier(n_estimators=50, class_weight='balanced')
             
             # Build ensemble
             model = VotingClassifier(
-                estimators=[('lr', lr_model)],
+                estimators=[
+                    ('lr', lr_model),
+                    ('rf', rf_model)
+                ],
                 voting='soft'
             )
             
-            # Fit with dummy data (not accurate, just for UI testing)
+            # Create realistic synthetic data based on banking patterns
             import numpy as np
-            X_dummy = np.random.rand(100, 13)  # 13 features
-            y_dummy = np.random.randint(0, 2, 100)  # Binary target
+            # Features: CreditScore, Geography, Gender, Age, Tenure, Balance, NumOfProducts, 
+            # HasCrCard, IsActiveMember, EstimatedSalary, BalanceSalaryRatio, TenureByAge, CreditScorePerAge
+            
+            n_samples = 1000
+            X_dummy = np.zeros((n_samples, 13))
+            
+            # Generate more realistic features
+            X_dummy[:, 0] = np.random.randint(400, 850, n_samples)  # CreditScore
+            X_dummy[:, 1] = np.random.randint(0, 3, n_samples)      # Geography
+            X_dummy[:, 2] = np.random.randint(0, 2, n_samples)      # Gender
+            X_dummy[:, 3] = np.random.randint(18, 95, n_samples)    # Age
+            X_dummy[:, 4] = np.random.randint(0, 11, n_samples)     # Tenure
+            
+            # Balances - some zero, some very high
+            balances = np.zeros(n_samples)
+            has_balance = np.random.rand(n_samples) < 0.8  # 80% have balance
+            balances[has_balance] = np.random.exponential(50000, sum(has_balance))
+            X_dummy[:, 5] = balances
+            
+            X_dummy[:, 6] = np.random.randint(1, 5, n_samples)      # NumOfProducts
+            X_dummy[:, 7] = np.random.randint(0, 2, n_samples)      # HasCrCard
+            X_dummy[:, 8] = np.random.randint(0, 2, n_samples)      # IsActiveMember
+            X_dummy[:, 9] = np.random.uniform(10000, 200000, n_samples)  # EstimatedSalary
+            
+            # Derived features
+            X_dummy[:, 10] = X_dummy[:, 5] / (X_dummy[:, 9] + 1)    # BalanceSalaryRatio
+            X_dummy[:, 11] = X_dummy[:, 4] / (X_dummy[:, 3] + 1)    # TenureByAge
+            X_dummy[:, 12] = X_dummy[:, 0] / (X_dummy[:, 3] + 1)    # CreditScorePerAge
+            
+            # Generate target variable with dependencies on features
+            # More likely to churn if: lower credit score, inactive member, 
+            # age extremes, higher # of products, low balance/salary ratio
+            churn_prob = np.zeros(n_samples)
+            
+            # Credit score factor (higher score = lower churn)
+            churn_prob += 0.4 * (1 - (X_dummy[:, 0] - 400) / 450)
+            
+            # Age factor (middle age = lower churn)
+            age_factor = 0.5 * np.abs(X_dummy[:, 3] - 45) / 45
+            churn_prob += age_factor
+            
+            # Active member (inactive = higher churn)
+            churn_prob += 0.3 * (1 - X_dummy[:, 8])
+            
+            # Number of products (1 or 2 = lower churn, 3+ = higher churn)
+            prod_factor = np.zeros(n_samples)
+            prod_factor[X_dummy[:, 6] == 1] = 0.1
+            prod_factor[X_dummy[:, 6] == 2] = 0.0
+            prod_factor[X_dummy[:, 6] >= 3] = 0.4
+            churn_prob += prod_factor
+            
+            # Balance factor (zero balance = higher churn)
+            balance_factor = np.zeros(n_samples)
+            balance_factor[X_dummy[:, 5] < 1] = 0.3
+            churn_prob += balance_factor
+            
+            # Normalize and add randomness
+            churn_prob = churn_prob / churn_prob.max()
+            churn_prob = 0.7 * churn_prob + 0.3 * np.random.rand(n_samples)
+            churn_prob = np.clip(churn_prob, 0, 1)
+            
+            # Final binary target
+            y_dummy = (churn_prob > 0.5).astype(int)
+            
+            # Make sure we have a good class balance (at least 30% churn)
+            while np.mean(y_dummy) < 0.3:
+                add_churn = np.where(y_dummy == 0)[0][:50]
+                y_dummy[add_churn] = 1
+            
             model.fit(X_dummy, y_dummy)
             
             # Create scaler
@@ -87,38 +158,71 @@ def prepare_features(data):
 def get_feature_importance(data):
     """Generate a simplified explanation of the prediction based on key features"""
     explanations = []
+    risk_factors = []
+    protective_factors = []
     
     # Credit Score
     if data['CreditScore'] < 600:
-        explanations.append("Low credit score increases churn risk")
+        risk_factors.append("Low credit score (< 600)")
     elif data['CreditScore'] > 750:
-        explanations.append("High credit score decreases churn risk")
+        protective_factors.append("Excellent credit score (> 750)")
     
     # Age
     if data['Age'] < 30:
-        explanations.append("Younger customers tend to be more likely to switch banks")
+        risk_factors.append("Young customer age (< 30)")
     elif data['Age'] > 60:
-        explanations.append("Older customers generally show higher loyalty")
+        protective_factors.append("Mature customer age (> 60)")
     
-    # Balance and Salary
+    # Balance
+    if data['Balance'] == 0:
+        risk_factors.append("Zero balance account")
+    elif data['Balance'] > 100000:
+        protective_factors.append("High account balance (> 100,000)")
+    
+    # Balance and Salary Ratio
     if data['BalanceSalaryRatio'] < 0.1:
-        explanations.append("Low balance relative to salary may indicate limited engagement")
-    elif data['BalanceSalaryRatio'] > 3:
-        explanations.append("High balance relative to salary indicates strong relationship")
+        risk_factors.append("Low balance to salary ratio (< 0.1)")
+    elif data['BalanceSalaryRatio'] > 2:
+        protective_factors.append("High balance to salary ratio (> 2)")
     
     # Active Membership
     if data['IsActiveMember'] == 0:
-        explanations.append("Inactive members are significantly more likely to churn")
+        risk_factors.append("Inactive membership status")
+    else:
+        protective_factors.append("Active membership status")
     
     # Number of Products
     if data['NumOfProducts'] == 1:
-        explanations.append("Customers with only one product are at higher risk of leaving")
-    elif data['NumOfProducts'] >= 3:
-        explanations.append("Multiple products indicate strong customer relationship")
+        risk_factors.append("Only one banking product")
+    elif data['NumOfProducts'] >= 4:
+        risk_factors.append("Too many products (4+)")
+    elif data['NumOfProducts'] == 2:
+        protective_factors.append("Optimal number of products (2)")
+    
+    # Tenure
+    if data['Tenure'] <= 2:
+        risk_factors.append("Short customer tenure (≤ 2 years)")
+    elif data['Tenure'] >= 7:
+        protective_factors.append("Long customer relationship (≥ 7 years)")
+    
+    # Credit Card
+    if data['HasCrCard'] == 0:
+        risk_factors.append("No credit card")
+    
+    # Geography-based risk (based on our model training patterns)
+    if data['Geography'] == 2:  # Spain
+        risk_factors.append("Higher churn rate in this geography")
+    
+    # Combine explanations
+    if risk_factors:
+        explanations.append("Risk factors: " + ", ".join(risk_factors))
+    
+    if protective_factors:
+        explanations.append("Protective factors: " + ", ".join(protective_factors))
     
     # If no specific explanations, provide a generic one
     if not explanations:
-        explanations.append("Prediction based on a combination of all factors")
+        explanations.append("Prediction based on a combination of all customer attributes")
     
     return explanations
 

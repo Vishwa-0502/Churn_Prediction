@@ -184,50 +184,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 switch(profileType) {
                     case 'low-risk':
                         profileData = {
-                            CreditScore: 750,
+                            CreditScore: 850,  // Excellent credit score
                             Geography: 'France',
                             GeographyValue: 0,
                             Gender: 'Female',
                             GenderValue: 0,
-                            Age: 45,
-                            Tenure: 8,
-                            Balance: 125000,
-                            NumOfProducts: 2,
+                            Age: 45,  // Middle-aged (stable)
+                            Tenure: 10, // Long-term customer
+                            Balance: 175000, // High balance
+                            NumOfProducts: 2, // Optimal number of products
                             HasCrCard: 1,
-                            IsActiveMember: 1,
-                            EstimatedSalary: 85000
+                            IsActiveMember: 1, // Active member
+                            EstimatedSalary: 95000 // Good salary
                         };
                         break;
                     case 'medium-risk':
                         profileData = {
-                            CreditScore: 650,
+                            CreditScore: 650, // Average credit score
                             Geography: 'Germany',
                             GeographyValue: 1,
                             Gender: 'Male',
                             GenderValue: 1,
                             Age: 35,
-                            Tenure: 3,
-                            Balance: 40000,
-                            NumOfProducts: 1,
+                            Tenure: 3, // Newer customer
+                            Balance: 40000, // Moderate balance
+                            NumOfProducts: 1, // Only one product
                             HasCrCard: 1,
-                            IsActiveMember: 1,
+                            IsActiveMember: 0, // Not active
                             EstimatedSalary: 60000
                         };
                         break;
                     case 'high-risk':
                         profileData = {
-                            CreditScore: 550,
+                            CreditScore: 480, // Poor credit score
                             Geography: 'Spain',
                             GeographyValue: 2,
                             Gender: 'Male',
                             GenderValue: 1,
-                            Age: 28,
-                            Tenure: 1,
-                            Balance: 0,
-                            NumOfProducts: 3,
-                            HasCrCard: 0,
-                            IsActiveMember: 0,
-                            EstimatedSalary: 70000
+                            Age: 25, // Young customer
+                            Tenure: 1, // New customer
+                            Balance: 0, // Zero balance
+                            NumOfProducts: 4, // Too many products
+                            HasCrCard: 0, // No credit card
+                            IsActiveMember: 0, // Inactive
+                            EstimatedSalary: 50000 // Lower salary
                         };
                         break;
                 }

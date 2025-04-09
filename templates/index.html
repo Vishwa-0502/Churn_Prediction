@@ -1,0 +1,362 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-dark shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title text-info mb-3">
+                    <i class="fas fa-robot me-2"></i>Bank Customer Churn Prediction
+                </h2>
+                <p class="card-text">
+                    Welcome to the Bank Customer Churn Prediction platform. This sophisticated tool uses machine learning 
+                    to predict whether a bank customer is likely to leave the bank (churn) based on their profile and banking behavior.
+                    The model achieves high accuracy by combining multiple algorithms (XGBoost, CatBoost, LightGBM, and Logistic Regression).
+                </p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>How it works:</strong> Enter customer information in the form below for an individual prediction, 
+                    or upload a CSV file for batch processing. The system will analyze the data and provide a churn probability 
+                    along with visualizations and explanations.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for Individual vs Batch Prediction -->
+<ul class="nav nav-tabs mb-4" id="predictionTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active prediction-tab" id="individual-tab" data-bs-toggle="tab" data-bs-target="#individual" type="button" role="tab" aria-controls="individual" aria-selected="true">
+            <i class="fas fa-user me-2"></i>Individual Prediction
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link prediction-tab" id="batch-tab" data-bs-toggle="tab" data-bs-target="#batch" type="button" role="tab" aria-controls="batch" aria-selected="false">
+            <i class="fas fa-users me-2"></i>Batch Prediction
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="predictionsTabContent">
+    <!-- Individual Prediction -->
+    <div class="tab-pane fade show active" id="individual" role="tabpanel" aria-labelledby="individual-tab">
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="card bg-dark shadow-sm">
+                    <div class="card-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-user-check me-2"></i>Customer Information
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <h5 class="text-info">Sample Customer Profiles</h5>
+                            <p class="small">Click on any profile to automatically fill the form with sample data:</p>
+                            <div class="d-flex gap-2">
+                                <a href="#" class="btn btn-sm btn-outline-success sample-profile" data-profile="low-risk">
+                                    <i class="fas fa-user-shield me-1"></i> Low Risk Profile
+                                </a>
+                                <a href="#" class="btn btn-sm btn-outline-warning sample-profile" data-profile="medium-risk">
+                                    <i class="fas fa-user-clock me-1"></i> Medium Risk Profile
+                                </a>
+                                <a href="#" class="btn btn-sm btn-outline-danger sample-profile" data-profile="high-risk">
+                                    <i class="fas fa-user-times me-1"></i> High Risk Profile
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <form action="/predict" method="post" class="needs-validation" novalidate>
+                            <div class="row g-3">
+                                <!-- Credit Score -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="CreditScore" class="form-label">
+                                                <i class="fas fa-credit-card me-1 text-info"></i> Credit Score
+                                                <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="Credit score ranges from 300-850, higher is better"></i>
+                                            </label>
+                                            <input type="number" class="form-control" id="CreditScore" name="CreditScore" placeholder="e.g., 700" min="300" max="850" required>
+                                            <div class="invalid-feedback">
+                                                Please enter a valid credit score (300-850).
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Geography -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="Geography" class="form-label">
+                                                <i class="fas fa-globe me-1 text-info"></i> Geography
+                                            </label>
+                                            <select class="form-select" id="Geography" required>
+                                                <option value="" selected disabled>Select country</option>
+                                                <option value="France">France</option>
+                                                <option value="Germany">Germany</option>
+                                                <option value="Spain">Spain</option>
+                                            </select>
+                                            <input type="hidden" id="geography-value" name="Geography" value="">
+                                            <div class="invalid-feedback">
+                                                Please select a country.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Gender -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="Gender" class="form-label">
+                                                <i class="fas fa-venus-mars me-1 text-info"></i> Gender
+                                            </label>
+                                            <select class="form-select" id="Gender" required>
+                                                <option value="" selected disabled>Select gender</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Male">Male</option>
+                                            </select>
+                                            <input type="hidden" id="gender-value" name="Gender" value="">
+                                            <div class="invalid-feedback">
+                                                Please select a gender.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Age -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="Age" class="form-label">
+                                                <i class="fas fa-birthday-cake me-1 text-info"></i> Age
+                                            </label>
+                                            <input type="number" class="form-control" id="Age" name="Age" placeholder="e.g., 35" min="18" max="100" required>
+                                            <div class="invalid-feedback">
+                                                Please enter a valid age (18-100).
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Tenure -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="Tenure" class="form-label">
+                                                <i class="fas fa-clock me-1 text-info"></i> Tenure (Years)
+                                                <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="Number of years as a bank customer"></i>
+                                            </label>
+                                            <input type="number" class="form-control" id="Tenure" name="Tenure" placeholder="e.g., 5" min="0" max="10" required>
+                                            <div class="invalid-feedback">
+                                                Please enter a valid tenure (0-10 years).
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Balance -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="Balance" class="form-label">
+                                                <i class="fas fa-money-bill-wave me-1 text-info"></i> Balance
+                                            </label>
+                                            <input type="number" class="form-control" id="Balance" name="Balance" placeholder="e.g., 75000" min="0" required>
+                                            <div class="invalid-feedback">
+                                                Please enter a valid balance.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Number of Products -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="NumOfProducts" class="form-label">
+                                                <i class="fas fa-cubes me-1 text-info"></i> Number of Products
+                                                <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="Number of bank products the customer uses"></i>
+                                            </label>
+                                            <select class="form-select" id="NumOfProducts" name="NumOfProducts" required>
+                                                <option value="" selected disabled>Select</option>
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="3">3</option>
+                                                <option value="4">4</option>
+                                            </select>
+                                            <div class="invalid-feedback">
+                                                Please select the number of products.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Has Credit Card -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="HasCrCard" class="form-label">
+                                                <i class="fas fa-credit-card me-1 text-info"></i> Has Credit Card
+                                            </label>
+                                            <select class="form-select" id="HasCrCard" name="HasCrCard" required>
+                                                <option value="" selected disabled>Select</option>
+                                                <option value="1">Yes</option>
+                                                <option value="0">No</option>
+                                            </select>
+                                            <div class="invalid-feedback">
+                                                Please select whether the customer has a credit card.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Is Active Member -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="IsActiveMember" class="form-label">
+                                                <i class="fas fa-user-check me-1 text-info"></i> Is Active Member
+                                                <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="Whether the customer is actively using bank services"></i>
+                                            </label>
+                                            <select class="form-select" id="IsActiveMember" name="IsActiveMember" required>
+                                                <option value="" selected disabled>Select</option>
+                                                <option value="1">Yes</option>
+                                                <option value="0">No</option>
+                                            </select>
+                                            <div class="invalid-feedback">
+                                                Please select whether the customer is an active member.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Estimated Salary -->
+                                <div class="col-md-4">
+                                    <div class="card feature-card">
+                                        <div class="card-body">
+                                            <label for="EstimatedSalary" class="form-label">
+                                                <i class="fas fa-dollar-sign me-1 text-info"></i> Estimated Salary
+                                            </label>
+                                            <input type="number" class="form-control" id="EstimatedSalary" name="EstimatedSalary" placeholder="e.g., 50000" min="0" required>
+                                            <div class="invalid-feedback">
+                                                Please enter a valid estimated salary.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hidden fields for derived features -->
+                                <input type="hidden" id="BalanceSalaryRatio" name="BalanceSalaryRatio" value="0">
+                                <input type="hidden" id="TenureByAge" name="TenureByAge" value="0">
+                                <input type="hidden" id="CreditScorePerAge" name="CreditScorePerAge" value="0">
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                <button type="reset" class="btn btn-outline-secondary">
+                                    <i class="fas fa-undo me-1"></i> Reset
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-calculator me-1"></i> Predict Churn
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Batch Prediction -->
+    <div class="tab-pane fade" id="batch" role="tabpanel" aria-labelledby="batch-tab">
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="card bg-dark shadow-sm">
+                    <div class="card-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-file-csv me-2"></i>Batch Prediction
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>CSV File Format:</strong> Upload a CSV file containing customer data. The file must include the following columns:
+                            <ul class="mb-0 mt-2">
+                                <li>CreditScore, Geography (0=France, 1=Germany, 2=Spain), Gender (0=Female, 1=Male)</li>
+                                <li>Age, Tenure, Balance, NumOfProducts, HasCrCard, IsActiveMember, EstimatedSalary</li>
+                                <li>Optional: BalanceSalaryRatio, TenureByAge, CreditScorePerAge (will be calculated if missing)</li>
+                            </ul>
+                        </div>
+                        
+                        <form action="/batch_predict" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                            <div class="mb-3">
+                                <label for="csv-file" class="form-label">
+                                    <i class="fas fa-upload me-1 text-info"></i> Upload CSV File
+                                </label>
+                                <input class="form-control" type="file" id="csv-file" name="file" accept=".csv" required>
+                                <div id="file-feedback" class="invalid-feedback">
+                                    Please select a CSV file.
+                                </div>
+                                <div class="form-text">
+                                    <i class="fas fa-file me-1"></i> <span id="file-name-display">No file selected</span>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" id="batch-submit-btn" class="btn btn-primary">
+                                    <i class="fas fa-cloud-upload-alt me-1"></i> Upload and Predict
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card bg-dark shadow-sm">
+                    <div class="card-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Information and Guidelines
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="text-info">About Churn Prediction</h5>
+                        <p>
+                            Customer churn prediction helps banks identify customers who are likely to leave the bank in the near future.
+                            By identifying these high-risk customers, banks can take proactive measures to retain them.
+                        </p>
+                        
+                        <h5 class="text-info">Key Factors Affecting Churn</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card bg-dark-subtle">
+                                    <div class="card-body">
+                                        <h6><i class="fas fa-user-minus text-danger me-2"></i>High Churn Risk Factors</h6>
+                                        <ul class="small">
+                                            <li>Low or zero account balance</li>
+                                            <li>Inactive membership status</li>
+                                            <li>Short tenure with the bank</li>
+                                            <li>Low credit score</li>
+                                            <li>Young age bracket (18-30)</li>
+                                            <li>Having only one product</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-dark-subtle">
+                                    <div class="card-body">
+                                        <h6><i class="fas fa-user-plus text-success me-2"></i>Low Churn Risk Factors</h6>
+                                        <ul class="small">
+                                            <li>High balance-to-salary ratio</li>
+                                            <li>Active membership status</li>
+                                            <li>Long tenure with the bank</li>
+                                            <li>High credit score</li>
+                                            <li>Multiple bank products</li>
+                                            <li>Credit card holder</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

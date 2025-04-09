@@ -1,0 +1,100 @@
+/* Custom styles for Bank Churn Prediction App */
+
+/* Card hover effect */
+.feature-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(var(--bs-info-rgb), 0.15);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+
+/* Feature input card */
+.feature-card {
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+/* Results section styling */
+.result-section {
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.high-risk {
+    border-left: 5px solid var(--bs-danger);
+}
+
+.medium-risk {
+    border-left: 5px solid var(--bs-warning);
+}
+
+.low-risk {
+    border-left: 5px solid var(--bs-success);
+}
+
+/* Custom tooltip styling */
+.custom-tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.custom-tooltip .tooltip-text {
+    visibility: hidden;
+    width: 200px;
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.custom-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Chart container */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 1.5rem;
+}
+
+/* Progress bar styling */
+.progress {
+    height: 1.5rem;
+}
+
+/* Form labels */
+.form-label {
+    font-weight: 500;
+}
+
+/* Feature explanation list */
+.feature-explanation-list {
+    padding-left: 1.5rem;
+}
+
+.feature-explanation-list li {
+    margin-bottom: 0.5rem;
+}
+
+/* Batch results table */
+.batch-results-table {
+    font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px;
+    }
+}

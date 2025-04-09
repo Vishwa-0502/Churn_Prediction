@@ -1,0 +1,356 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-dark shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title text-info mb-3">
+                    <i class="fas fa-chart-pie me-2"></i>Churn Prediction Results
+                </h2>
+                <p class="card-text">
+                    Below are the results of the churn prediction analysis for the customer profile you provided.
+                    The model has evaluated various factors to determine the likelihood of this customer leaving the bank.
+                </p>
+                <div class="text-end">
+                    <a href="/" class="btn btn-outline-info">
+                        <i class="fas fa-arrow-left me-1"></i> New Prediction
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Prediction Result -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark shadow-sm h-100">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Prediction
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if result == 1 %}
+                <div class="result-section high-risk p-4 text-center">
+                    <h3 class="text-danger mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>High Churn Risk
+                    </h3>
+                    <div class="display-1 text-danger mb-3">{{ probability }}%</div>
+                    <p class="lead">
+                        This customer is <strong>likely to leave</strong> the bank in the near future.
+                    </p>
+                </div>
+                {% else %}
+                <div class="result-section low-risk p-4 text-center">
+                    <h3 class="text-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i>Low Churn Risk
+                    </h3>
+                    <div class="display-1 text-success mb-3">{{ probability }}%</div>
+                    <p class="lead">
+                        This customer is <strong>likely to stay</strong> with the bank.
+                    </p>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <h5 class="text-info">Prediction Explanation</h5>
+                    <ul class="feature-explanation-list">
+                        {% for exp in explanation %}
+                        <li>{{ exp }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Probability Gauge -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark shadow-sm h-100">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Churn Probability
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="probability-gauge"></canvas>
+                </div>
+                
+                <div class="risk-meter mt-4">
+                    <h5 class="text-info mb-3">Risk Level</h5>
+                    <div class="d-flex justify-content-between text-muted small mb-1">
+                        <span>Low Risk</span>
+                        <span>Medium Risk</span>
+                        <span>High Risk</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: 33%" aria-valuenow="33" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: 34%" aria-valuenow="34" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-danger" role="progressbar" style="width: 33%" aria-valuenow="33" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    
+                    {% if probability < 30 %}
+                    <div class="indicator" style="margin-left: calc({{ probability }}% - 10px); margin-top: 5px;">
+                        <i class="fas fa-caret-up text-success"></i>
+                    </div>
+                    {% elif probability < 70 %}
+                    <div class="indicator" style="margin-left: calc({{ probability }}% - 10px); margin-top: 5px;">
+                        <i class="fas fa-caret-up text-warning"></i>
+                    </div>
+                    {% else %}
+                    <div class="indicator" style="margin-left: calc({{ probability }}% - 10px); margin-top: 5px;">
+                        <i class="fas fa-caret-up text-danger"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-4">
+                    <h5 class="text-info">What This Means</h5>
+                    {% if probability < 30 %}
+                    <p>
+                        <span class="badge bg-success me-2">Low Risk</span>
+                        This customer has a strong relationship with the bank and is unlikely to churn in the near future.
+                        They are among your loyal customer base.
+                    </p>
+                    {% elif probability < 70 %}
+                    <p>
+                        <span class="badge bg-warning me-2">Medium Risk</span>
+                        This customer shows some signs that they might leave, but the risk is moderate.
+                        Consider offering targeted retention strategies to strengthen their relationship with the bank.
+                    </p>
+                    {% else %}
+                    <p>
+                        <span class="badge bg-danger me-2">High Risk</span>
+                        This customer is at high risk of churning soon. 
+                        Immediate intervention with retention offers and personalized outreach is recommended.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Feature Profile -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark shadow-sm h-100">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-user-circle me-2"></i>Customer Profile
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="feature-importance-chart"></canvas>
+                </div>
+                
+                <div class="mt-4">
+                    <h5 class="text-info">Key Insights</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-dark">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Value</th>
+                                    <th>Impact</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Credit Score -->
+                                <tr>
+                                    <td>Credit Score</td>
+                                    <td>{{ features.CreditScore }}</td>
+                                    <td>
+                                        {% if features.CreditScore > 750 %}
+                                        <span class="badge bg-success">Positive</span>
+                                        {% elif features.CreditScore > 650 %}
+                                        <span class="badge bg-warning">Neutral</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Negative</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <!-- Age -->
+                                <tr>
+                                    <td>Age</td>
+                                    <td>{{ features.Age }}</td>
+                                    <td>
+                                        {% if features.Age > 55 %}
+                                        <span class="badge bg-success">Positive</span>
+                                        {% elif features.Age > 35 %}
+                                        <span class="badge bg-warning">Neutral</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Negative</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <!-- Balance -->
+                                <tr>
+                                    <td>Balance</td>
+                                    <td>${{ "{:,.2f}".format(features.Balance) }}</td>
+                                    <td>
+                                        {% if features.Balance > 100000 %}
+                                        <span class="badge bg-success">Positive</span>
+                                        {% elif features.Balance > 10000 %}
+                                        <span class="badge bg-warning">Neutral</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Negative</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <!-- Is Active Member -->
+                                <tr>
+                                    <td>Active Member</td>
+                                    <td>{{ "Yes" if features.IsActiveMember == 1 else "No" }}</td>
+                                    <td>
+                                        {% if features.IsActiveMember == 1 %}
+                                        <span class="badge bg-success">Positive</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Negative</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <!-- Products -->
+                                <tr>
+                                    <td>Products</td>
+                                    <td>{{ features.NumOfProducts }}</td>
+                                    <td>
+                                        {% if features.NumOfProducts >= 3 %}
+                                        <span class="badge bg-danger">Negative</span>
+                                        {% elif features.NumOfProducts == 2 %}
+                                        <span class="badge bg-success">Positive</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Neutral</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card bg-dark shadow-sm">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Recommendations
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if result == 1 %}
+                <!-- High risk recommendations -->
+                <h5 class="text-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>Retention Strategies for High-Risk Customer
+                </h5>
+                <div class="row g-4 mt-2">
+                    <div class="col-md-4">
+                        <div class="card bg-dark-subtle h-100">
+                            <div class="card-body">
+                                <h5><i class="fas fa-gift text-info me-2"></i>Personalized Offers</h5>
+                                <p class="small">
+                                    Develop tailored incentives based on the customer's banking history and preferences.
+                                    {% if features.Balance < 10000 %}
+                                    Consider offering higher interest rates on deposits to encourage higher balances.
+                                    {% endif %}
+                                    {% if features.NumOfProducts == 1 %}
+                                    Introduce complementary products with special benefits or fee waivers.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-dark-subtle h-100">
+                            <div class="card-body">
+                                <h5><i class="fas fa-comment-dots text-info me-2"></i>Proactive Communication</h5>
+                                <p class="small">
+                                    Increase touchpoints with the customer through personalized communication.
+                                    Schedule a relationship manager call to understand their needs and concerns.
+                                    {% if features.IsActiveMember == 0 %}
+                                    Re-engage them with exclusive invitations to bank events or webinars.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-dark-subtle h-100">
+                            <div class="card-body">
+                                <h5><i class="fas fa-star text-info me-2"></i>Enhanced Experience</h5>
+                                <p class="small">
+                                    Provide VIP customer service and streamlined processes.
+                                    {% if features.CreditScore < 650 %}
+                                    Offer financial advisory services to help improve their credit score.
+                                    {% endif %}
+                                    {% if features.Tenure < 2 %}
+                                    Create an onboarding journey to better familiarize them with all available services.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Low risk recommendations -->
+                <h5 class="text-success">
+                    <i class="fas fa-check-circle me-2"></i>Growth Strategies for Low-Risk Customer
+                </h5>
+                <div class="row g-4 mt-2">
+                    <div class="col-md-4">
+                        <div class="card bg-dark-subtle h-100">
+                            <div class="card-body">
+                                <h5><i class="fas fa-chart-line text-info me-2"></i>Cross-Selling Opportunities</h5>
+                                <p class="small">
+                                    Leverage the strong relationship to introduce additional banking products.
+                                    {% if features.HasCrCard == 0 %}
+                                    Offer premium credit cards with rewards aligned to their spending patterns.
+                                    {% endif %}
+                                    {% if features.NumOfProducts < 2 %}
+                                    Suggest investment accounts or savings products to diversify their portfolio.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-dark-subtle h-100">
+                            <div class="card-body">
+                                <h5><i class="fas fa-users text-info me-2"></i>Loyalty Programs</h5>
+                                <p class="small">
+                                    Reward their loyalty with enhanced benefits and privileged services.
+                                    Enroll them in tiered loyalty programs with increasing benefits.
+                                    {% if features.Tenure > 5 %}
+                                    Recognize their long-term relationship with anniversary perks or exclusive offers.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-dark-subtle h-100">
+                            <div class="card-body">
+                                <h5><i class="fas fa-handshake text-info me-2"></i>Relationship Deepening</h5>
+                                <p class="small">
+                                    Strengthen the relationship by providing personalized financial guidance.
+                                    Offer premium financial planning services or wealth management consultation.
+                                    {% if features.Balance > 100000 %}
+                                    Provide dedicated relationship manager for more personalized service.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

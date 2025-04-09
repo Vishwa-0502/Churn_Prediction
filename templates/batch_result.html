@@ -1,0 +1,296 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-dark shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title text-info mb-3">
+                    <i class="fas fa-chart-bar me-2"></i>Batch Prediction Results
+                </h2>
+                <p class="card-text">
+                    Below are the results of the batch churn prediction analysis for the uploaded customer data.
+                    The model has evaluated each customer profile to determine their likelihood of leaving the bank.
+                </p>
+                <div class="text-end">
+                    <a href="/" class="btn btn-outline-info">
+                        <i class="fas fa-arrow-left me-1"></i> New Prediction
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Summary Statistics -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark shadow-sm h-100">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Summary
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card bg-dark-subtle">
+                            <div class="card-body p-3 text-center">
+                                <h2 class="text-info mb-0">{{ summary.total_customers }}</h2>
+                                <p class="small text-muted mb-0">Total Customers</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark-subtle">
+                            <div class="card-body p-3 text-center">
+                                <h2 class="text-danger mb-0">{{ summary.predicted_churn }}</h2>
+                                <p class="small text-muted mb-0">Predicted Churn</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark-subtle">
+                            <div class="card-body p-3 text-center">
+                                <h2 class="text-warning mb-0">{{ summary.churn_rate }}%</h2>
+                                <p class="small text-muted mb-0">Churn Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark-subtle">
+                            <div class="card-body p-3 text-center">
+                                <h2 class="text-info mb-0">{{ summary.avg_probability }}%</h2>
+                                <p class="small text-muted mb-0">Avg. Probability</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h5 class="text-info">Risk Distribution</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-dark">
+                            <thead>
+                                <tr>
+                                    <th>Risk Level</th>
+                                    <th>Customers</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-danger">High Risk</span>
+                                    </td>
+                                    <td>{{ summary.high_risk_customers }}</td>
+                                    <td>{{ (summary.high_risk_customers / summary.total_customers * 100) | round(1) }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-warning">Medium Risk</span>
+                                    </td>
+                                    <td>{{ summary.medium_risk_customers }}</td>
+                                    <td>{{ (summary.medium_risk_customers / summary.total_customers * 100) | round(1) }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-success">Low Risk</span>
+                                    </td>
+                                    <td>{{ summary.low_risk_customers }}</td>
+                                    <td>{{ (summary.low_risk_customers / summary.total_customers * 100) | round(1) }}%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Distribution Chart -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark shadow-sm h-100">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Churn Distribution
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="churn-distribution-chart"></canvas>
+                </div>
+                
+                <div class="mt-4">
+                    <h5 class="text-info">Risk Category Distribution</h5>
+                    <div class="chart-container">
+                        <canvas id="risk-category-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Feature Analysis -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-dark shadow-sm h-100">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Feature Analysis
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="feature-comparison-chart"></canvas>
+                </div>
+                
+                <div class="mt-4">
+                    <h5 class="text-info">Key Differences</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-dark">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Churned</th>
+                                    <th>Loyal</th>
+                                    <th>Diff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for feature, values in summary.feature_analysis.items() %}
+                                <tr>
+                                    <td>{{ feature }}</td>
+                                    <td>{{ values.churned_avg }}</td>
+                                    <td>{{ values.not_churned_avg }}</td>
+                                    <td>
+                                        {% if values.difference > 0 %}
+                                        <span class="text-success">+{{ values.difference }}</span>
+                                        {% else %}
+                                        <span class="text-danger">{{ values.difference }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card bg-dark shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-table me-2"></i>Detailed Results
+                </h4>
+                <button class="btn btn-sm btn-outline-info" id="download-csv">
+                    <i class="fas fa-download me-1"></i> Download Results
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-dark batch-results-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Credit Score</th>
+                                <th>Age</th>
+                                <th>Tenure</th>
+                                <th>Balance</th>
+                                <th>Products</th>
+                                <th>Is Active</th>
+                                <th>Estimated Salary</th>
+                                <th>Churn Probability</th>
+                                <th>Prediction</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i, result in enumerate(results) %}
+                            <tr>
+                                <td>{{ i + 1 }}</td>
+                                <td>{{ result.CreditScore }}</td>
+                                <td>{{ result.Age }}</td>
+                                <td>{{ result.Tenure }}</td>
+                                <td>${{ "{:,.2f}".format(result.Balance) }}</td>
+                                <td>{{ result.NumOfProducts }}</td>
+                                <td>{{ "Yes" if result.IsActiveMember == 1 else "No" }}</td>
+                                <td>${{ "{:,.2f}".format(result.EstimatedSalary) }}</td>
+                                <td>
+                                    {% if result.ChurnProbability >= 70 %}
+                                    <span class="text-danger">{{ "%.1f"|format(result.ChurnProbability) }}%</span>
+                                    {% elif result.ChurnProbability >= 30 %}
+                                    <span class="text-warning">{{ "%.1f"|format(result.ChurnProbability) }}%</span>
+                                    {% else %}
+                                    <span class="text-success">{{ "%.1f"|format(result.ChurnProbability) }}%</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if result.ChurnPrediction == 1 %}
+                                    <span class="badge bg-danger">Churn</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Stay</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // CSV Download Functionality
+    document.getElementById('download-csv').addEventListener('click', function() {
+        // Get the table data
+        const table = document.querySelector('.batch-results-table');
+        const rows = table.querySelectorAll('tr');
+        
+        // Create CSV content
+        let csvContent = "data:text/csv;charset=utf-8,";
+        
+        // Add headers
+        const headers = [];
+        rows[0].querySelectorAll('th').forEach(th => {
+            headers.push(th.textContent.trim());
+        });
+        csvContent += headers.join(',') + '\r\n';
+        
+        // Add rows
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const cols = row.querySelectorAll('td');
+            const rowData = [];
+            
+            cols.forEach(col => {
+                // Clean the data for CSV
+                let value = col.textContent.trim();
+                value = value.replace(/\$/g, '').replace(/,/g, ''); // Remove $ and commas
+                value = value.replace(/%/g, ''); // Remove percentage signs
+                rowData.push(value);
+            });
+            
+            csvContent += rowData.join(',') + '\r\n';
+        }
+        
+        // Create download link
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', 'churn_predictions.csv');
+        document.body.appendChild(link);
+        
+        // Trigger download and remove link
+        link.click();
+        document.body.removeChild(link);
+    });
+</script>
+{% endblock %}

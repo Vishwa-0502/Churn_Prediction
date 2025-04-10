@@ -209,9 +209,9 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for i, result in enumerate(results) %}
+                            {% for result in results %}
                             <tr>
-                                <td>{{ i + 1 }}</td>
+                                <td>{{ loop.index }}</td>
                                 <td>{{ result.CreditScore }}</td>
                                 <td>{{ result.Age }}</td>
                                 <td>{{ result.Tenure }}</td>

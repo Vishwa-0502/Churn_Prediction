@@ -1,0 +1,77 @@
+# -*- coding: utf-8 -*-
+# Artificial Neural Network for Customer Churn Prediction
+
+# Part 1 - Data Preprocessing
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from keras.models import Sequential
+from keras.layers import Dense
+
+# Load dataset
+dataset = pd.read_csv('Churn_Modelling.csv')
+
+# Feature Matrix and Target Variable
+X = dataset.iloc[:, 3:-1].values
+y = dataset.iloc[:, -1].values
+
+# Encode Gender column (Label Encoding)
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+X[:, 2] = le.fit_transform(X[:, 2])
+
+# One Hot Encode Geography column
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+ct = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), [1])], remainder='passthrough')
+X = np.array(ct.fit_transform(X))
+
+# Split the data into training and testing sets
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+# Feature Scaling
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+
+# Part 2 - Building the ANN
+ann = Sequential()
+ann.add(Dense(units=6, activation='relu', input_shape=(X_train.shape[1],)))
+ann.add(Dense(units=6, activation='relu'))
+ann.add(Dense(units=1, activation='sigmoid'))
+
+# Compile the ANN
+ann.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train the ANN
+ann.fit(X_train, y_train, batch_size=32, epochs=100)
+
+# Part 3 - Making Predictions
+
+# Predicting a single new observation
+# France (1, 0, 0), Credit Score 600, Gender Male (1), Age 40, Tenure 3, Balance 60000,
+# Products 2, Has Credit Card (1), Active Member (1), Estimated Salary 50000
+
+new_customer = sc.transform([[1, 0, 0, 600, 1, 40, 3, 60000, 2, 1, 1, 50000]])
+print("Prediction for single new observation (1 = Leave, 0 = Stay):", ann.predict(new_customer) > 0.5)
+
+# Predicting the Test set results
+y_pred = ann.predict(X_test)
+y_pred = (y_pred > 0.5)
+
+# Confusion Matrix and Accuracy
+from sklearn.metrics import confusion_matrix, accuracy_score
+cm = confusion_matrix(y_test, y_pred)
+print("Confusion Matrix:\n", cm)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+
+# Part 4 - Save the model as .h5 file
+ann.save('customer_churn_model.h5')
+print("Model saved as customer_churn_model.h5")
+
+# Save StandardScaler (important for preprocessing in Flask)
+import joblib
+joblib.dump(sc, 'scaler.pkl')
+print("Scaler saved as scaler.pkl")

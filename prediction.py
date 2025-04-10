@@ -7,6 +7,7 @@ import h5py
 import io
 import pickle
 from collections import Counter
+from sklearn.preprocessing import StandardScaler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,7 +15,17 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def load_model_and_scaler():
     """Load the pre-trained model and scaler"""
     try:
-        # First try our custom-created compatible model
+        # First try the TensorFlow ANN model
+        try:
+            logging.info("Attempting to load TensorFlow ANN model...")
+            model = load_model('attached_assets/customer_churn_model.h5')
+            scaler = joblib.load('attached_assets/scaler.pkl')
+            logging.info("TensorFlow ANN model and scaler loaded successfully")
+            return model, scaler
+        except Exception as e0:
+            logging.warning(f"Could not load TensorFlow model: {str(e0)}. Trying custom pickle model...")
+        
+        # Try our custom-created compatible model
         try:
             logging.info("Attempting to load custom model...")
             with open('custom_churn_model.pkl', 'rb') as f:
@@ -26,10 +37,10 @@ def load_model_and_scaler():
             logging.info("Custom model and scaler loaded successfully")
             return model, scaler
             
-        except Exception as e0:
-            logging.warning(f"Could not load custom model: {str(e0)}. Trying H5 file...")
+        except Exception as e1:
+            logging.warning(f"Could not load custom model: {str(e1)}. Trying H5 file...")
         
-        # Try the H5 file
+        # Try the original H5 file
         try:
             logging.info("Attempting to load model from H5 file...")
             with h5py.File('attached_assets/churn_model.h5', 'r') as f:
@@ -42,8 +53,8 @@ def load_model_and_scaler():
             logging.info("Model and scaler loaded successfully from H5 file")
             return model, scaler
             
-        except Exception as e1:
-            logging.warning(f"Could not load model from H5 file: {str(e1)}. Trying pickle files...")
+        except Exception as e2:
+            logging.warning(f"Could not load model from H5 file: {str(e2)}. Trying pickle files...")
         
         # Then try pickle files
         try:
@@ -52,13 +63,12 @@ def load_model_and_scaler():
             logging.info("Model and scaler loaded successfully from pickle files")
             return model, scaler
             
-        except Exception as e2:
-            logging.warning(f"Could not load pre-trained model from pickle: {str(e2)}. Creating a fallback model for testing.")
+        except Exception as e3:
+            logging.warning(f"Could not load pre-trained model from pickle: {str(e3)}. Creating a fallback model for testing.")
         
-        # If both methods fail, create a fallback model
+        # If all methods fail, create a fallback model
         from sklearn.ensemble import RandomForestClassifier, VotingClassifier
         from sklearn.linear_model import LogisticRegression
-        from sklearn.preprocessing import StandardScaler
         
         # Create models
         lr_model = LogisticRegression(max_iter=1000, class_weight='balanced')
@@ -74,7 +84,6 @@ def load_model_and_scaler():
         )
         
         # Create realistic synthetic data based on banking patterns
-        import numpy as np
         # Features: CreditScore, Geography, Gender, Age, Tenure, Balance, NumOfProducts, 
         # HasCrCard, IsActiveMember, EstimatedSalary, BalanceSalaryRatio, TenureByAge, CreditScorePerAge
         
@@ -276,8 +285,14 @@ def make_prediction(model, scaler, data):
         # Scale the features
         scaled_features = scaler.transform(df)
         
-        # Make prediction
-        probability = model.predict_proba(scaled_features)[0, 1]
+        # Check if we're using a TensorFlow model or scikit-learn model
+        if hasattr(model, 'predict_proba'):
+            # scikit-learn model
+            probability = model.predict_proba(scaled_features)[0, 1]
+        else:
+            # TensorFlow model
+            probability = float(model.predict(scaled_features)[0][0])
+        
         prediction = 1 if probability >= 0.5 else 0
         
         # Generate explanation
@@ -313,8 +328,14 @@ def process_batch_predictions(model, scaler, filepath):
         # Scale features
         scaled_features = scaler.transform(df_prepared)
         
-        # Make predictions
-        probabilities = model.predict_proba(scaled_features)[:, 1]
+        # Make predictions - check if we're using a TensorFlow model or scikit-learn model
+        if hasattr(model, 'predict_proba'):
+            # scikit-learn model
+            probabilities = model.predict_proba(scaled_features)[:, 1]
+        else:
+            # TensorFlow model
+            probabilities = model.predict(scaled_features).flatten()
+        
         predictions = [1 if p >= 0.5 else 0 for p in probabilities]
         
         # Add predictions to the dataframe

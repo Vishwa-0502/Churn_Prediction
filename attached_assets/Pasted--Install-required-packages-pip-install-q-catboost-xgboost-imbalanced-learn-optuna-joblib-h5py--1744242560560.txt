@@ -1,0 +1,104 @@
+# ✅ Install required packages
+!pip install -q catboost xgboost imbalanced-learn optuna joblib h5py kagglehub numpy==1.24.4 --force-reinstall
+
+# ✅ Imports
+import kagglehub
+import pandas as pd
+import numpy as np
+import joblib
+import h5py
+import optuna
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import VotingClassifier
+from sklearn.metrics import accuracy_score, classification_report
+from catboost import CatBoostClassifier
+from xgboost import XGBClassifier
+from imblearn.over_sampling import SMOTE
+
+# ✅ Load dataset from KaggleHub
+path = kagglehub.dataset_download("saurabhbadole/bank-customer-churn-prediction-dataset")
+df = pd.read_csv(f"{path}/Churn_Modelling.csv")
+
+# ✅ Drop unused columns
+df.drop(['RowNumber', 'CustomerId', 'Surname'], axis=1, inplace=True)
+
+# ✅ Encode categorical variables
+le = LabelEncoder()
+df['Geography'] = le.fit_transform(df['Geography'])  # France=0, Germany=1, Spain=2
+df['Gender'] = le.fit_transform(df['Gender'])        # Female=0, Male=1
+
+# ✅ Feature Engineering
+df['BalanceSalaryRatio'] = df['Balance'] / (df['EstimatedSalary'] + 1)
+df['TenureByAge'] = df['Tenure'] / (df['Age'] + 1)
+df['CreditScorePerAge'] = df['CreditScore'] / (df['Age'] + 1)
+
+# ✅ Features & Target
+X = df.drop('Exited', axis=1)
+y = df['Exited']
+
+# ✅ Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
+
+# ✅ Balance the training data with SMOTE
+smote = SMOTE(random_state=42)
+X_train_sm, y_train_sm = smote.fit_resample(X_train, y_train)
+
+# ✅ Feature Scaling
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train_sm)
+X_test_scaled = scaler.transform(X_test)
+
+# ✅ Optuna tuning for XGBoost
+def objective(trial):
+    params = {
+        "max_depth": trial.suggest_int("max_depth", 3, 10),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 500),
+        "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0)
+    }
+    model = XGBClassifier(use_label_encoder=False, eval_metric='logloss', **params)
+    model.fit(X_train_scaled, y_train_sm)
+    preds = model.predict(X_test_scaled)
+    return accuracy_score(y_test, preds)
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective, n_trials=10)
+best_params = study.best_params
+
+# ✅ Train final models
+xgb_final = XGBClassifier(use_label_encoder=False, eval_metric='logloss', **best_params)
+cat_final = CatBoostClassifier(verbose=0, iterations=300, depth=6, learning_rate=0.05)
+logreg_final = LogisticRegression(max_iter=1000)
+
+xgb_final.fit(X_train_scaled, y_train_sm)
+cat_final.fit(X_train_scaled, y_train_sm)
+logreg_final.fit(X_train_scaled, y_train_sm)
+
+# ✅ Ensemble
+ensemble = VotingClassifier(
+    estimators=[
+        ('xgb', xgb_final),
+        ('cat', cat_final),
+        ('lr', logreg_final)
+    ],
+    voting='soft'
+)
+
+ensemble.fit(X_train_scaled, y_train_sm)
+
+# ✅ Predict and Evaluate
+y_pred = ensemble.predict(X_test_scaled)
+print(f"\n✅ Model Accuracy: {accuracy_score(y_test, y_pred):.4f}\n")
+print(classification_report(y_test, y_pred, digits=4))
+
+# ✅ Save to .h5 using joblib inside h5py
+with h5py.File('churn_model.h5', 'w') as h5file:
+    model_bytes = joblib.dumps(ensemble)
+    scaler_bytes = joblib.dumps(scaler)
+    h5file.create_dataset("model", data=np.void(model_bytes))
+    h5file.create_dataset("scaler", data=np.void(scaler_bytes))
+
+print("🎉 Model and Scaler saved as churn_model.h5")
